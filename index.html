@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Event Resource Conflict Detection</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#172033}.app{max-width:1100px;margin:auto;padding:22px}.hero{background:linear-gradient(135deg,#18243a,#415a88);color:#fff;border-radius:22px;padding:28px;margin-bottom:18px}.hero h1{margin:0 0 8px}.hero p{margin:0;color:#d9e4f4}.grid{display:grid;grid-template-columns:380px 1fr;gap:18px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:18px;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,.06)}label{display:block;font-weight:700;margin:10px 0 6px}input,select{width:100%;padding:11px;border:1px solid #ccd3dd;border-radius:10px;font-size:15px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.btn{border:0;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer;background:#172033;color:#fff}.btn.alt{background:#eef2f7;color:#172033}.event{border:1px solid #e4e7ec;border-left:5px solid #3b82f6;border-radius:12px;padding:14px;margin-bottom:10px}.event h3{margin:0 0 7px}.meta{color:#667085;font-size:14px;line-height:1.5}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;margin-top:7px;font-size:12px}.warning{background:#fff3f3;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px;margin-bottom:12px}.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:12px;padding:12px;margin-bottom:12px}.empty{color:#667085;text-align:center;padding:45px 10px}.small{color:#667085;font-size:13px;margin-top:12px}.filter{margin-bottom:12px}@media(max-width:820px){.grid{grid-template-columns:1fr}}@media(max-width:520px){.app{padding:12px}.row{grid-template-columns:1fr}.hero,.card{padding:16px}}
+</style></head>
+<body><div class="app">
+<section class="hero"><h1>📅 Event Resource Conflict Detection System</h1><p>Add events, assign rooms/resources, and detect overlapping schedules automatically.</p></section>
+<div class="grid">
+<section class="card"><h2>Add Event</h2>
+<label>Event Name</label><input id="name" placeholder="e.g. DBMS Workshop">
+<label>Resource / Room</label><select id="resource"><option>Seminar Hall</option><option>Lab 1</option><option>Lab 2</option><option>Room 101</option><option>Auditorium</option></select>
+<div class="row"><div><label>Date</label><input id="date" type="date"></div><div><label>Start Time</label><input id="start" type="time"></div></div>
+<div class="row"><div><label>End Time</label><input id="end" type="time"></div><div><label>Organizer</label><input id="organizer" placeholder="Optional"></div></div>
+<div id="message"></div>
+<div class="btns"><button class="btn" id="add">Add Event</button><button class="btn alt" id="clear">Clear Form</button></div>
+<p class="small">Conflict rule: two events conflict when they use the same resource on the same date and their time ranges overlap.</p>
+</section>
+<section class="card"><div class="row" style="align-items:end"><div><h2 style="margin:0">Event List</h2></div><div><input class="filter" id="search" placeholder="Search events or rooms"></div></div><div id="list"></div></section>
+</div></div>
+<script>
+let events=JSON.parse(localStorage.getItem('eventConflictDemo')||'[]');
+const el=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function overlap(a,b){return a.start<b.end&&b.start<a.end;}
+function conflicts(e,ignoreId=null){return events.filter(x=>x.id!==ignoreId&&x.date===e.date&&x.resource===e.resource&&overlap(e,x));}
+function save(){localStorage.setItem('eventConflictDemo',JSON.stringify(events));}
+function render(){
+ const q=el('search').value.trim().toLowerCase();
+ const data=events.filter(e=>(e.name+' '+e.resource+' '+e.organizer).toLowerCase().includes(q)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+ const list=el('list');
+ if(!data.length){list.innerHTML='<div class="empty">No events added yet.</div>';return;}
+ list.innerHTML=data.map(e=>{
+   const c=conflicts(e,e.id);
+   return '<div class="event"><h3>'+esc(e.name)+'</h3><div class="meta"><strong>'+esc(e.date)+'</strong> · '+esc(e.start)+'–'+esc(e.end)+'<br>Resource: '+esc(e.resource)+(e.organizer?'<br>Organizer: '+esc(e.organizer):'')+'</div><span class="badge">'+(c.length?'⚠️ Conflict detected':'✅ No conflict')+'</span><div class="btns"><button class="btn alt" data-del="'+e.id+'">Delete</button></div></div>';
+ }).join('');
+ document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{events=events.filter(e=>e.id!==b.dataset.del);save();render();});
+}
+function clearForm(){['name','date','start','end','organizer'].forEach(id=>el(id).value='');el('resource').selectedIndex=0;el('message').innerHTML='';}
+el('add').onclick=()=>{
+ const e={id:Date.now().toString(),name:el('name').value.trim(),resource:el('resource').value,date:el('date').value,start:el('start').value,end:el('end').value,organizer:el('organizer').value.trim()};
+ if(!e.name||!e.date||!e.start||!e.end){el('message').innerHTML='<div class="warning">Please fill event name, date, start time and end time.</div>';return;}
+ if(e.start>=e.end){el('message').innerHTML='<div class="warning">End time must be later than start time.</div>';return;}
+ const c=conflicts(e);
+ events.push(e);save();render();
+ el('message').innerHTML=c.length?'<div class="warning"><strong>Conflict detected!</strong> This resource already has '+c.length+' overlapping event(s) on the selected date/time.</div>':'<div class="success">Event added successfully. No resource conflict found.</div>';
+ clearForm();
+};
+el('clear').onclick=clearForm;el('search').oninput=render;
+render();
+</script></body></html>
