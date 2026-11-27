@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event Resource Conflict Detection System | Live Demo</title>
+<style>
+:root{--navy:#17243b;--blue:#315caa;--bg:#f3f6fb;--ink:#182235;--muted:#667085;--line:#e4e9f1}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,Arial,sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:25px}.hero{background:linear-gradient(120deg,#17243b,#315caa);color:white;border-radius:22px;padding:30px;margin-bottom:20px;box-shadow:0 12px 35px #17243b22}.hero h1{margin:0 0 8px;font-size:clamp(25px,4vw,36px)}.hero p{margin:0;color:#dce7fa}.tag{display:inline-block;margin-top:15px;padding:5px 10px;border:1px solid #ffffff55;border-radius:20px;font-size:12px;letter-spacing:.5px}
+.notice{background:#fff8e7;border:1px solid #f5d68b;color:#805b0b;padding:12px 15px;border-radius:12px;margin-bottom:18px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.stat,.panel{background:white;border:1px solid var(--line);border-radius:17px;padding:19px;box-shadow:0 7px 22px #17203308}.stat span{color:var(--muted)}.stat strong{display:block;font-size:27px;margin-top:4px}.grid{display:grid;grid-template-columns:350px 1fr;gap:18px}h2{margin:0 0 14px;font-size:20px}label{display:block;font-weight:650;margin:12px 0 5px}input,select{width:100%;padding:11px 12px;border:1px solid #ccd5e2;border-radius:10px;font:inherit;background:#fff;color:var(--ink)}input:focus,select:focus{outline:2px solid #b9cdf5;border-color:var(--blue)}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.btn{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:white;font-weight:700;cursor:pointer}.btn.secondary{background:#edf1f7;color:var(--ink)}.btn.danger{background:#fff0f0;color:#a32626;padding:7px 10px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}.top input{max-width:260px}.event{border:1px solid var(--line);border-left:5px solid #3b82f6;border-radius:12px;padding:14px;margin:12px 0;display:flex;justify-content:space-between;gap:12px}.event h3{margin:0 0 5px}.meta{color:var(--muted);font-size:14px}.badge{display:inline-block;margin-top:7px;padding:3px 9px;border-radius:20px;background:#eaf8ef;color:#17663a;font-size:12px}.empty{text-align:center;padding:35px;color:var(--muted)}.msg{padding:10px 12px;border-radius:9px;margin-top:12px}.error{background:#fff0f0;color:#a32626}.success{background:#eaf8ef;color:#17663a}.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}@media(max-width:560px){.wrap{padding:12px}.stats{gap:8px}.stat{padding:13px}.stat strong{font-size:22px}.row{grid-template-columns:1fr}.top{align-items:stretch;flex-direction:column}.top input{max-width:none}.event{flex-direction:column}}
+</style></head>
+<body><main class="wrap">
+<header class="hero"><h1>📅 Event Resource Conflict Detection System</h1><p>Plan events, manage rooms and instantly detect overlapping bookings.</p><span class="tag">INTERACTIVE PROJECT DEMO · DBMS CONCEPT</span></header>
+<div class="notice"><b>Demo mode:</b> This GitHub Pages version runs in your browser and saves demo records in local storage. MySQL server connection is not enabled in this static demo.</div>
+<section class="stats"><div class="stat"><span>Total Events</span><strong id="total">0</strong></div><div class="stat"><span>Resources Used</span><strong id="used">0</strong></div><div class="stat"><span>Event Dates</span><strong id="dates">0</strong></div></section>
+<div class="grid">
+<section class="panel"><h2>➕ Add New Event</h2>
+<form id="form"><label>Event Name *</label><input id="name" required placeholder="e.g. DBMS Workshop">
+<label>Room / Resource *</label><select id="resource" required><option value="">Select resource</option><option>Seminar Hall</option><option>Computer Lab 1</option><option>Computer Lab 2</option><option>Auditorium</option><option>Conference Room</option><option>Sports Ground</option></select>
+<div class="row"><div><label>Date *</label><input id="date" type="date" required></div><div><label>Organizer</label><input id="organizer" placeholder="Your name"></div></div>
+<div class="row"><div><label>Start Time *</label><input id="start" type="time" required></div><div><label>End Time *</label><input id="end" type="time" required></div></div>
+<div id="message" aria-live="polite"></div><div class="btns"><button class="btn" type="submit">Save Event</button><button class="btn secondary" type="reset">Clear</button><button class="btn secondary" type="button" id="sample">Load Sample Data</button></div>
+<p class="meta">Conflict rule: same resource + same date + overlapping time. Back-to-back bookings are allowed.</p></form></section>
+<section class="panel"><div class="top"><h2>📋 Scheduled Events</h2><input id="search" placeholder="Search events, room or organizer"></div><div id="list"></div></section>
+</div><div class="footer">Event Resource Conflict Detection System · Interactive Browser Demo</div></main>
+<script>
+const $=id=>document.getElementById(id), KEY='ercds_demo_events_v1';
+let events=[];try{events=JSON.parse(localStorage.getItem(KEY)||'[]')}catch{events=[]}
+const save=()=>localStorage.setItem(KEY,JSON.stringify(events));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function notify(type,text){$('message').innerHTML='<div class="msg '+type+'">'+esc(text)+'</div>'}
+function conflict(e,ignoreId=null){return events.find(x=>x.id!==ignoreId&&x.resource===e.resource&&x.date===e.date&&e.start<x.end&&e.end>x.start)}
+function render(){const q=$('search').value.trim().toLowerCase(),shown=events.filter(e=>[e.name,e.resource,e.organizer].join(' ').toLowerCase().includes(q)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));$('total').textContent=events.length;$('used').textContent=new Set(events.map(e=>e.resource)).size;$('dates').textContent=new Set(events.map(e=>e.date)).size;
+$('list').innerHTML=shown.length?shown.map(e=>'<article class="event"><div><h3>'+esc(e.name)+'</h3><div class="meta">📍 '+esc(e.resource)+' · 📅 '+esc(e.date)+' · ⏰ '+esc(e.start)+'–'+esc(e.end)+'</div><div class="meta">Organizer: '+esc(e.organizer||'Not specified')+'</div><span class="badge">Booking saved</span></div><button class="btn danger" onclick="removeEvent(\''+e.id+'\')">Delete</button></article>').join(''):'<div class="empty">No events found. Add an event or load sample data.</div>'}
+function removeEvent(id){events=events.filter(e=>e.id!==id);save();render()}
+window.removeEvent=removeEvent;
+$('form').addEventListener('submit',ev=>{ev.preventDefault();const e={id:Date.now().toString(),name:$('name').value.trim(),resource:$('resource').value,date:$('date').value,organizer:$('organizer').value.trim(),start:$('start').value,end:$('end').value};if(!e.name||!e.resource||!e.date||!e.start||!e.end)return notify('error','Please fill all required fields.');if(e.start>=e.end)return notify('error','End time must be later than start time.');const c=conflict(e);if(c)return notify('error','Booking conflict! '+c.resource+' is already booked for "'+c.name+'" from '+c.start+' to '+c.end+' on '+c.date+'. Choose another time or resource.');events.push(e);save();render();$('form').reset();notify('success','Event successfully saved. No booking conflict detected.')});
+$('search').addEventListener('input',render);
+$('sample').addEventListener('click',()=>{const d=new Date();d.setDate(d.getDate()+1);const date=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');events=[{id:'sample1',name:'DBMS Workshop',resource:'Seminar Hall',date,organizer:'Computer Science Department',start:'10:00',end:'12:00'},{id:'sample2',name:'Web Development Lab',resource:'Computer Lab 1',date,organizer:'Faculty Coordinator',start:'11:00',end:'13:00'}];save();render();notify('success','Sample events loaded. Try adding another event in Seminar Hall between 10:00 and 12:00 to see conflict detection.')});
+render();
+</script></body></html>
