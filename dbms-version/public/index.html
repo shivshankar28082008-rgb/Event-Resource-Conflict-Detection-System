@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event Resource Conflict Detection System | DBMS</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}.app{max-width:1150px;margin:auto;padding:24px}
+.hero{background:linear-gradient(135deg,#17243b,#405d91);color:white;border-radius:22px;padding:28px;margin-bottom:18px}.hero h1{margin:0 0 8px}.hero p{color:#dce7f7}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.stat,.card{background:white;border:1px solid #e3e9f1;border-radius:17px;padding:19px;box-shadow:0 7px 22px #1720330a}
+.stat strong{display:block;font-size:25px;margin-top:5px}.grid{display:grid;grid-template-columns:370px 1fr;gap:18px}h2{margin:0 0 14px}
+label{display:block;font-weight:700;margin:11px 0 6px}input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:white}
+.row,.toprow{display:grid;grid-template-columns:1fr 1fr;gap:10px}.toprow{align-items:end}.btns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer;background:#172033;color:white}.btn.alt{background:#edf1f7;color:#172033}
+.event{border:1px solid #e4e8ef;border-left:5px solid #3b82f6;border-radius:12px;padding:14px;margin:12px 0}.event h3{margin:0 0 7px}
+.meta,.small{color:#667085;font-size:14px;line-height:1.6}.badge{display:inline-block;padding:5px 9px;border-radius:30px;background:#ecfdf3;color:#166534;margin-top:8px;font-size:12px}
+.warning,.success,.error{border-radius:11px;padding:12px;margin:12px 0;font-size:14px}.warning{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}.success{background:#ecfdf3;border:1px solid #bbf7d0;color:#166534}.error{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}.empty{text-align:center;color:#667085;padding:40px 10px}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}@media(max-width:550px){.app{padding:12px}.row,.stats,.toprow{grid-template-columns:1fr}.hero{padding:20px}}
+</style></head><body><main class="app">
+<section class="hero"><h1>📅 Event Resource Conflict Detection System</h1><p>Manage event schedules, assign rooms and detect booking conflicts using a MySQL database.</p><b>DBMS PROJECT · MYSQL + NODE.JS</b></section>
+<section class="stats"><div class="stat">Total Events<strong id="total">0</strong></div><div class="stat">Resources Used<strong id="resourcesUsed">0</strong></div><div class="stat">Event Dates<strong id="dates">0</strong></div></section>
+<div class="grid"><section class="card"><h2>➕ Add New Event</h2>
+<label>Event Name *</label><input id="name" placeholder="e.g. DBMS Workshop">
+<label>Resource / Room *</label><select id="resource"><option value="">Loading resources...</option></select>
+<div class="row"><div><label>Date *</label><input id="date" type="date"></div><div><label>Organizer</label><input id="organizer" placeholder="Organizer name"></div></div>
+<div class="row"><div><label>Start Time *</label><input id="start" type="time"></div><div><label>End Time *</label><input id="end" type="time"></div></div>
+<div id="message" aria-live="polite"></div><div class="btns"><button class="btn" id="add">Save Event</button><button class="btn alt" id="clear">Clear</button></div>
+<p class="small">Conflict rule: same resource + same date + overlapping time. Back-to-back bookings are allowed.</p></section>
+<section class="card"><div class="toprow"><h2>📋 Scheduled Events</h2><input id="search" placeholder="Search event, room or organizer"></div><div id="list"><div class="empty">Loading events...</div></div></section></div></main>
+<script>
+const el=id=>document.getElementById(id);
+async function api(url,opt={}){const r=await fetch(url,{headers:{"Content-Type":"application/json"},...opt});const d=await r.json().catch(()=>({message:"Unexpected server response"}));if(!r.ok)throw Object.assign(new Error(d.message||"Request failed"),{data:d,status:r.status});return d;}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+function message(type,t){el("message").innerHTML='<div class="'+type+'">'+esc(t)+'</div>';}
+async function resources(){const a=await api("/api/resources");el("resource").innerHTML='<option value="">Select a room/resource</option>'+a.map(x=>'<option>'+esc(x.resource_name)+'</option>').join("");}
+async function stats(){const s=await api("/api/stats");el("total").textContent=s.totalEvents;el("resourcesUsed").textContent=s.usedResources;el("dates").textContent=s.eventDates;}
+async function render(){try{const a=await api("/api/events?search="+encodeURIComponent(el("search").value.trim()));if(!a.length){el("list").innerHTML='<div class="empty">No events found. Add your first event.</div>';return;}
+el("list").innerHTML=a.map(e=>'<article class="event"><h3>'+esc(e.name)+'</h3><div class="meta"><b>'+esc(e.date)+'</b> · '+esc(e.start)+'–'+esc(e.end)+'<br>Resource: '+esc(e.resource)+(e.organizer?'<br>Organizer: '+esc(e.organizer):"")+'</div><span class="badge">✓ Saved in MySQL database</span><div class="btns"><button class="btn alt" data-delete="'+e.id+'">Delete Event</button></div></article>').join("");
+document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this event?"))return;try{await api("/api/events/"+b.dataset.delete,{method:"DELETE"});await refresh();}catch(e){alert(e.message);}});}
+catch(e){el("list").innerHTML='<div class="error">Could not load events. Check Node server and MySQL.</div>';}}
+async function refresh(){await Promise.all([render(),stats()]);}
+function clearForm(){["name","date","start","end","organizer"].forEach(x=>el(x).value="");el("resource").value="";}
+el("add").onclick=async()=>{const e={name:el("name").value.trim(),resource:el("resource").value,date:el("date").value,start:el("start").value,end:el("end").value,organizer:el("organizer").value.trim()};
+if(!e.name||!e.resource||!e.date||!e.start||!e.end){message("warning","Please fill all required fields.");return;}if(e.start>=e.end){message("warning","End time must be later than start time.");return;}
+try{const d=await api("/api/events",{method:"POST",body:JSON.stringify(e)});message("success",d.message);clearForm();await refresh();}catch(x){message(x.status===409?"warning":"error",x.message);}};
+el("clear").onclick=()=>{clearForm();el("message").innerHTML="";};el("search").oninput=render;
+(async()=>{try{await resources();await refresh();}catch(e){message("error","Database connection failed. Run database.sql and check .env configuration.");}})();
+</script></body></html>
